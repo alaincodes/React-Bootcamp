@@ -20,16 +20,42 @@
 
 // ReactDOM.render(<App />, document.getElementById("app"));
 
-function FriendsList(props) {
+function ActiveFriends(props) {
   return (
-    <ul>
-      {props.list.map(name => (
-        <li key={name}>
-          <span>{name}</span>
-          <button onClick={() => props.onRemoveFriend(name)}>Remove</button>
-        </li>
-      ))}
-    </ul>
+    <div>
+      <h2>Active Friends</h2>
+      <ul>
+        {props.list.map(friend => (
+          <li key={friend.name}>
+            <span>{friend.name}</span>
+            <button onClick={() => props.onRemoveFriend(friend.name)}>
+              Remove
+            </button>
+            <button onClick={() => props.onToggleFriend(friend.name)}>
+              Deactivate
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function InactiveFriends(props) {
+  return (
+    <div>
+      <h2>Inactive Friends</h2>
+      <ul>
+        {props.list.map(friend => (
+          <li key={friend.name}>
+            <span>{friend.name}</span>
+            <button onClick={() => props.onToggleFriend(friend.name)}>
+              Activate
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -38,7 +64,17 @@ class App extends React.Component {
     super(props);
 
     this.state = {
-      friends: ["Jordyn", "Mikenzi", "Jake"],
+      friends: [
+        {
+          name: "Jordan",
+          active: true
+        },
+        { name: "MiKenzi", active: true },
+        {
+          name: "Alice",
+          active: false
+        }
+      ],
       input: ""
     };
   }
@@ -46,7 +82,12 @@ class App extends React.Component {
   handleAddFriend = () => {
     this.setState(currentState => {
       return {
-        friends: currentState.friends.concat([this.state.input]),
+        friends: currentState.friends.concat([
+          {
+            name: currentState.input,
+            active: true
+          }
+        ]),
         input: ""
       };
     });
@@ -55,7 +96,23 @@ class App extends React.Component {
   handleRemoveFriend = name => {
     this.setState(currentState => {
       return {
-        friends: currentState.friends.filter(friend => friend !== name)
+        friends: currentState.friends.filter(friend => friend.name !== name)
+      };
+    });
+  };
+
+  handleToggleFriend = name => {
+    this.setState(currentState => {
+      const friend = currentState.friends.find(friend => friend.name === name);
+      return {
+        friends: currentState.friends
+          .filter(friend => friend.name !== name)
+          .concat([
+            {
+              name,
+              active: !friend.active
+            }
+          ])
       };
     });
   };
@@ -76,9 +133,25 @@ class App extends React.Component {
           onChange={this.updateInput}
         />
         <button onClick={this.handleAddFriend}>Submit</button>
-        <FriendsList
-          list={this.state.friends}
+        <div>
+          <button
+            onClick={() =>
+              this.setState({
+                friends: []
+              })
+            }
+          >
+            Clear All
+          </button>
+        </div>
+        <ActiveFriends
+          list={this.state.friends.filter(friend => friend.active === true)}
           onRemoveFriend={this.handleRemoveFriend}
+          onToggleFriend={this.handleToggleFriend}
+        />
+        <InactiveFriends
+          list={this.state.friends.filter(friend => friend.active === false)}
+          onToggleFriend={this.handleToggleFriend}
         />
       </div>
     );
