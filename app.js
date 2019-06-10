@@ -20,142 +20,123 @@
 
 // ReactDOM.render(<App />, document.getElementById("app"));
 
-function ActiveFriends(props) {
+window.API = {
+  fetchPopularRepos(language = "all") {
+    const encodedURI = encodeURI(
+      `https://api.github.com/search/repositories?q=stars:>1+language:${language}&sort=stars&order=desc&type=Repositories`
+    );
+    return fetch(encodedURI)
+      .then(data => data.json())
+      .then(repos => repos.items)
+      .catch(error => {
+        console.warn(error);
+        return null;
+      });
+  }
+};
+
+class Loading extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      text: "Loading"
+    };
+  }
+  componentDidMount() {
+    const stopper = this.state.text + "...";
+    this.interval = window.setInterval(() => {
+      this.state.text === stopper
+        ? this.setState(() => ({ text: "Loading" }))
+        : this.setState(prevState => ({ text: prevState.text + "." }));
+    }, 300);
+  }
+  componentWillUnmount() {
+    window.clearInterval(this.interval);
+  }
+  render() {
+    return <p>{this.state.text}</p>;
+  }
+}
+function RepoGrid(props) {
   return (
-    <div>
-      <h2>Active Friends</h2>
+    <ul style={{ display: "flex", flexWrap: "wrap" }}>
+      {props.repos.map(({ name, owner, stargazers_count, html_url }) => (
+        <li key={name} style={{ margin: 30 }}>
+          <ul>
+            <li>
+              <a href={html_url}>{name}</a>
+            </li>
+            <li>@{owner.login}</li>
+            <li>{stargazers_count} stars</li>
+          </ul>
+        </li>
+      ))}
+    </ul>
+  );
+}
+function Nav(props) {
+  const languages = ["all", "javascript", "ruby", "python"];
+  return (
+    <nav>
       <ul>
-        {props.list.map(friend => (
-          <li key={friend.name}>
-            <span>{friend.name}</span>
-            <button onClick={() => props.onRemoveFriend(friend.name)}>
-              Remove
-            </button>
-            <button onClick={() => props.onToggleFriend(friend.name)}>
-              Deactivate
-            </button>
+        {languages.map(lang => (
+          <li key={lang} onClick={() => props.onSelectLanguage(lang)}>
+            {lang}
           </li>
         ))}
       </ul>
-    </div>
+    </nav>
   );
 }
-
-function InactiveFriends(props) {
-  return (
-    <div>
-      <h2>Inactive Friends</h2>
-      <ul>
-        {props.list.map(friend => (
-          <li key={friend.name}>
-            <span>{friend.name}</span>
-            <button onClick={() => props.onToggleFriend(friend.name)}>
-              Activate
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
 class App extends React.Component {
   constructor(props) {
     super(props);
-
     this.state = {
-      friends: [
-        {
-          name: "Jordan",
-          active: true
-        },
-        { name: "MiKenzi", active: true },
-        {
-          name: "Alice",
-          active: false
-        }
-      ],
-      input: ""
+      repos: [],
+      activeLanguage: "all",
+      loading: true
     };
+    this.handleSelectLanguage = this.handleSelectLanguage.bind(this);
+    this.fetchRepos = this.fetchRepos.bind(this);
   }
-
-  handleAddFriend = () => {
-    this.setState(currentState => {
-      return {
-        friends: currentState.friends.concat([
-          {
-            name: currentState.input,
-            active: true
-          }
-        ]),
-        input: ""
-      };
+  componentDidMount() {
+    this.fetchRepos(this.state.activeLanguage);
+  }
+  componentDidUpdate(prevProps, prevState) {
+    if (prevState.activeLanguage !== this.state.activeLanguage) {
+      this.fetchRepos(this.state.activeLanguage);
+    }
+  }
+  fetchRepos(lang) {
+    this.setState({
+      loading: true
     });
-  };
-
-  handleRemoveFriend = name => {
-    this.setState(currentState => {
-      return {
-        friends: currentState.friends.filter(friend => friend.name !== name)
-      };
+    window.API.fetchPopularRepos(lang).then(data => {
+      this.setState({
+        loading: false,
+        repos: data
+      });
     });
-  };
-
-  handleToggleFriend = name => {
-    this.setState(currentState => {
-      const friend = currentState.friends.find(friend => friend.name === name);
-      return {
-        friends: currentState.friends
-          .filter(friend => friend.name !== name)
-          .concat([
-            {
-              name,
-              active: !friend.active
-            }
-          ])
-      };
+  }
+  handleSelectLanguage(lang) {
+    this.setState({
+      activeLanguage: lang
     });
-  };
-
-  updateInput = e => {
-    const value = e.target.value;
-
-    this.setState({ input: value });
-  };
-
+  }
   render() {
     return (
       <div>
-        <input
-          type="text"
-          placeholder="new friend"
-          value={this.state.input}
-          onChange={this.updateInput}
-        />
-        <button onClick={this.handleAddFriend}>Submit</button>
-        <div>
-          <button
-            onClick={() =>
-              this.setState({
-                friends: []
-              })
-            }
-          >
-            Clear All
-          </button>
-        </div>
-        <ActiveFriends
-          list={this.state.friends.filter(friend => friend.active === true)}
-          onRemoveFriend={this.handleRemoveFriend}
-          onToggleFriend={this.handleToggleFriend}
-        />
-        <InactiveFriends
-          list={this.state.friends.filter(friend => friend.active === false)}
-          onToggleFriend={this.handleToggleFriend}
-        />
+        <Nav onSelectLanguage={this.handleSelectLanguage} />
+        {this.state.loading === true ? (
+          <Loading />
+        ) : (
+          <div>
+            <h1 style={{ textAlign: "center" }}>{this.state.activeLanguage}</h1>
+            <RepoGrid repos={this.state.repos} />
+          </div>
+        )}
       </div>
     );
   }
 }
-
 ReactDOM.render(<App />, document.getElementById("app"));
